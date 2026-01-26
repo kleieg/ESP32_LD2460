@@ -31,12 +31,11 @@ long now = millis();
 int LEDblink = 0;
 bool led = 1;
 
-// Serial(2)
-const uint8_t MSG_LEN = 50;
-uint8_t buf[MSG_LEN];
-uint8_t pos = 0;
 
-
+//LD2460
+int PosX[4];
+int PosY[4];
+int Targets = 0;
     
 // Create AsyncWebServer object on port 80
 AsyncWebServer Asynserver(80);
@@ -71,11 +70,9 @@ String getOutputStates(){
   myArray["cards"][3]["c_text"] = String(MQTT_INTERVAL) + "ms";
   myArray["cards"][4]["c_text"] = String(U_days) + " days " + String(U_hours) + ":" + String(U_min) + ":" + String(U_sec);
   myArray["cards"][5]["c_text"] = "WiFi = " + String(WiFi_reconnect) + "   MQTT = " + String(Mqtt_reconnect);
-  myArray["cards"][6]["c_text"] = "card6";
+  myArray["cards"][6]["c_text"] = String(Targets);
   myArray["cards"][7]["c_text"] = " to reboot click ok";
-  myArray["cards"][8]["c_text"] = "8ms";
-  myArray["cards"][9]["c_text"] = "9cm";
-  myArray["cards"][10]["c_text"] = "10cm";
+ 
   
   String jsonString = JSON.stringify(myArray);
   return jsonString;
@@ -152,17 +149,23 @@ void MQTTsend () {
   String mqtt_tag = Hostname + "/STATUS";
   log_i("%s\n", mqtt_tag.c_str());
 
-  String s;
-  s = "";
-  for (int i = 0; i < pos; i++) {
-    s += (char)buf[i];
-  }
+
 
   mqtt_data["Time"] = My_time;
   mqtt_data["RSSI"] = WiFi.RSSI();
-  mqtt_data["WIFIcon"] =WiFi_reconnect;
-  mqtt_data["MQTTcon"] =Mqtt_reconnect;
-  mqtt_data["Data"] = s;
+  mqtt_data["WIFIcon"] = WiFi_reconnect;
+  mqtt_data["MQTTcon"] = Mqtt_reconnect;
+  mqtt_data["Targets"] = Targets;
+  mqtt_data["T1x"] = PosX[0];
+  mqtt_data["T1y"] = PosY[0];
+  mqtt_data["T2x"] = PosX[1];
+  mqtt_data["T2y"] = PosY[1];
+  mqtt_data["T3x"] = PosX[2];
+  mqtt_data["T3y"] = PosY[2];
+  mqtt_data["T4x"] = PosX[3];
+  mqtt_data["T4y"] = PosY[4];
+  mqtt_data["T5x"] = PosX[5];
+  mqtt_data["T5y"] = PosY[5];
 
 
   
@@ -207,7 +210,7 @@ void setup() {
 
   // Start Serial 2 with the defined RX and TX pins and a baud rate of 9600
   ld2460Serial.begin(LD2460_BAUD, SERIAL_8N1, RXD2, TXD2);
-  log_i("Serial 2 started at 9600 baud rate");
+  log_i("Serial 2 started ");
 
 
   initSPIFFS();
@@ -260,19 +263,46 @@ void loop() {
     }
   }
 
-  pos = 0;
-  while (ld2460Serial.available() > 0) {
-    buf[pos++] = ld2460Serial.read();  // liest immer ein Byte aus dem RX-Buffer
-    //log_i("%s\n",(char)buf[pos-1]);    gibt kernel panic ????
-    ld2460Serial.print((char)buf[pos-1]);
-  }
 
-  if (pos > 0) {
-    // Meldung empfangen
-    MQTTsend();
-    pos = 0;  // bereit für die nächste Meldung
-  }
 
+  if (ld2460Serial.available() > 55 ) {
+    byte rec_buf[256] = "";
+    int len = ld2460Serial.readBytes(rec_buf, sizeof(rec_buf));
+
+    log_i("daten gelesen");
+    log_i("%d",len);
+
+    for (int i = 0; i < len; i++) {
+      if (rec_buf[i] == 0xF4 && rec_buf[i + 1] == 0xF3 && rec_buf[i + 2] == 0xF2 && rec_buf[i + 3] == 0xF1 && rec_buf[i + 4] == 0x04) {
+
+        int index = i + 5;
+        int len = (int16_t)(rec_buf[index] | (rec_buf[index + 1] << 8));
+
+        if (len < 11) {
+          break;
+        }
+
+        Targets = (len - 11) / 4;
+
+        log_i("Anz. Targets =");
+        log_i("%d",Targets);
+
+        index = i + 7;
+        for (int j = 0; j < Targets; j++) {
+                
+          PosX[j]= (int16_t)(rec_buf[index] | (rec_buf[index + 1] << 8));
+          PosY[j] = (int16_t)(rec_buf[index + 2] | (rec_buf[index + 3] << 8));
+
+          log_i("Target");
+          log_i("%d",PosX[j]);
+          log_i("%d",PosY[j]);
+
+          index = index + 4;
+          i = index;
+        }
+      }
+    }
+  }
 
   // check WiFi
   if (WiFi.status() != WL_CONNECTED  ) {
@@ -307,3 +337,4 @@ void loop() {
     } 
   }   
 }
+
