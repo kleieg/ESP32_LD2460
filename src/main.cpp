@@ -314,6 +314,7 @@ void loop() {
           if (j <  Targets) {
             PosX[j]= (int16_t)(rec_buf[index] | (rec_buf[index + 1] << 8));
             PosY[j] = (int16_t)(rec_buf[index + 2] | (rec_buf[index + 3] << 8));
+            index = index + 4;
 
             log_i("Target");
             log_i("%d",PosX[j]);
