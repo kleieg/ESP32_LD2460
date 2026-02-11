@@ -33,9 +33,13 @@ bool led = 1;
 
 
 //LD2460
-int PosX[4];
-int PosY[4];
+int PosX[5];
+int PosY[5];
 int Targets = 0;
+
+int PosX_old[5];
+int PosY_old[5];
+int Targets_old = 0;
     
 // Create AsyncWebServer object on port 80
 AsyncWebServer Asynserver(80);
@@ -150,33 +154,44 @@ void MQTTsend () {
   log_i("%s\n", mqtt_tag.c_str());
 
 
+  if (Targets != Targets_old || 
+    PosX[0] != PosX_old[0] || PosY[0] != PosY_old[0] || 
+    PosX[1] != PosX_old[1] || PosY[1] != PosY_old[1] || 
+    PosX[2] != PosX_old[2] || PosY[2] != PosY_old[2] || 
+    PosX[3] != PosX_old[3] || PosY[3] != PosY_old[3] || 
+    PosX[4] != PosX_old[4] || PosY[4] != PosY_old[4]) {
+    
+    mqtt_data["Time"] = My_time;
+    mqtt_data["RSSI"] = WiFi.RSSI();
+    mqtt_data["WIFIcon"] = WiFi_reconnect;
+    mqtt_data["MQTTcon"] = Mqtt_reconnect;
+    mqtt_data["Targets"] = Targets;
+    mqtt_data["T1x"] = PosX[0];
+    mqtt_data["T1y"] = PosY[0];
+    mqtt_data["T2x"] = PosX[1];
+    mqtt_data["T2y"] = PosY[1];
+    mqtt_data["T3x"] = PosX[2];
+    mqtt_data["T3y"] = PosY[2];
+    mqtt_data["T4x"] = PosX[3];
+    mqtt_data["T4y"] = PosY[3];
+    mqtt_data["T5x"] = PosX[4];
+    mqtt_data["T5y"] = PosY[4];
 
-  mqtt_data["Time"] = My_time;
-  mqtt_data["RSSI"] = WiFi.RSSI();
-  mqtt_data["WIFIcon"] = WiFi_reconnect;
-  mqtt_data["MQTTcon"] = Mqtt_reconnect;
-  mqtt_data["Targets"] = Targets;
-  mqtt_data["T1x"] = PosX[0];
-  mqtt_data["T1y"] = PosY[0];
-  mqtt_data["T2x"] = PosX[1];
-  mqtt_data["T2y"] = PosY[1];
-  mqtt_data["T3x"] = PosX[2];
-  mqtt_data["T3y"] = PosY[2];
-  mqtt_data["T4x"] = PosX[3];
-  mqtt_data["T4y"] = PosY[4];
-  mqtt_data["T5x"] = PosX[5];
-  mqtt_data["T5y"] = PosY[5];
-
-
+    Targets_old = Targets;
+    for (int i = 0; i < 5; i++) {
+      PosX_old[i] = PosX[i];
+      PosY_old[i] = PosY[i];
+    }
   
+  
+    String mqtt_string = JSON.stringify(mqtt_data);
 
-  String mqtt_string = JSON.stringify(mqtt_data);
+    log_i("%s\n", mqtt_string.c_str());
 
-  log_i("%s\n", mqtt_string.c_str());
+    mqttClient.publish(mqtt_tag.c_str(), mqtt_string.c_str());
 
-  mqttClient.publish(mqtt_tag.c_str(), mqtt_string.c_str());
-
-  notifyClients(getOutputStates());
+    notifyClients(getOutputStates());
+  }
 }
 
 // receive MQTT messages
@@ -193,6 +208,13 @@ void MQTT_callback(String &topic, String &payload) {
 
 // setup 
 void setup() {
+
+    for (int i = 0; i < 5; i++) {
+      PosX[i] = 0;
+      PosY[i] = 0;
+      PosX_old[i] = PosX[i];
+      PosY_old[i] = PosY[i];
+    }
   
   SERIALINIT                                 
 
@@ -265,9 +287,9 @@ void loop() {
 
 
 
-  if (ld2460Serial.available() > 55 ) {
+  if (ld2460Serial.available() > 100 ) {
     byte rec_buf[256] = "";
-    int len = ld2460Serial.readBytes(rec_buf, sizeof(rec_buf));
+    int len = ld2460Serial.readBytes(rec_buf,ld2460Serial.available());
 
     log_i("daten gelesen");
     log_i("%d",len);
@@ -288,19 +310,21 @@ void loop() {
         log_i("%d",Targets);
 
         index = i + 7;
-        for (int j = 0; j < Targets; j++) {
-                
-          PosX[j]= (int16_t)(rec_buf[index] | (rec_buf[index + 1] << 8));
-          PosY[j] = (int16_t)(rec_buf[index + 2] | (rec_buf[index + 3] << 8));
+        for (int j = 0;  j < 5; j++) {
+          if (j <  Targets) {
+            PosX[j]= (int16_t)(rec_buf[index] | (rec_buf[index + 1] << 8));
+            PosY[j] = (int16_t)(rec_buf[index + 2] | (rec_buf[index + 3] << 8));
 
-          log_i("Target");
-          log_i("%d",PosX[j]);
-          log_i("%d",PosY[j]);
-
-          index = index + 4;
-          i = index;
+            log_i("Target");
+            log_i("%d",PosX[j]);
+            log_i("%d",PosY[j]);
+          }else{
+            PosX[j] = 0;
+            PosY[j] = 0;
+          }
         }
       }
+      break;
     }
   }
 
