@@ -1,9 +1,9 @@
 // set hostname used for MQTT tag and WiFi
 #define HOSTNAME "ESP-LD2460"
 #define MQTT_BROKER "sym_mqtt"
-#define VERSION "v 0.9.0"
+#define VERSION "v 1.0.0"
 
-#define MQTT_INTERVAL 2000
+#define MQTT_INTERVAL 1000
 #define RECONNECT_INTERVAL 5000
 #define LED_BLINK_INTERVAL 500
 #define RELAY_RESET_INTERVAL 5000

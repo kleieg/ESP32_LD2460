@@ -31,7 +31,6 @@ long now = millis();
 int LEDblink = 0;
 bool led = 1;
 
-
 //LD2460
 int PosX[5];
 int PosY[5];
@@ -71,7 +70,7 @@ String getOutputStates(){
   myArray["cards"][0]["c_text"] = Hostname;
   myArray["cards"][1]["c_text"] = WiFi.dnsIP().toString() + "   /   " + String(VERSION);
   myArray["cards"][2]["c_text"] = String(WiFi.RSSI());
-  myArray["cards"][3]["c_text"] = String(MQTT_INTERVAL) + "ms";
+  myArray["cards"][3]["c_text"] = String(MQTT_INTERVAL) + " ms";
   myArray["cards"][4]["c_text"] = String(U_days) + " days " + String(U_hours) + ":" + String(U_min) + ":" + String(U_sec);
   myArray["cards"][5]["c_text"] = "WiFi = " + String(WiFi_reconnect) + "   MQTT = " + String(Mqtt_reconnect);
   myArray["cards"][6]["c_text"] = String(Targets);
@@ -284,7 +283,6 @@ void loop() {
       led = 0;
     }
   }
-
 
 
   if (ld2460Serial.available() > 100 ) {
